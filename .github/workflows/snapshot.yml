@@ -1,0 +1,82 @@
+name: Update official xyz:SPCX snapshot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+  push:
+    branches:
+      - main
+    paths:
+      - "fetch.mjs"
+      - ".github/workflows/snapshot.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: xyz-spcx-snapshot
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch official Hyperliquid data
+        run: node fetch.mjs > latest.json
+
+      - name: Validate output
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+
+          const data = JSON.parse(await readFile("latest.json", "utf8"));
+          const ageMs = Date.now() - Number(data.fetched_at_unix_ms);
+
+          if (data.source !== "Hyperliquid official Info API") {
+            throw new Error("Unexpected source");
+          }
+          if (data.market !== "xyz:SPCX") {
+            throw new Error("Unexpected market");
+          }
+          if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > 120_000) {
+            throw new Error(`Stale snapshot: ${ageMs}ms`);
+          }
+
+          for (const field of [
+            "mark_price",
+            "oracle_price",
+            "mid_price",
+            "funding_rate_hourly",
+            "open_interest_usd",
+            "volume_24h_usd",
+          ]) {
+            if (!Number.isFinite(Number(data[field]))) {
+              throw new Error(`Invalid ${field}`);
+            }
+          }
+          NODE
+
+      - name: Publish latest.json only
+        run: |
+          set -euo pipefail
+
+          tmp="$(mktemp -d)"
+          cp latest.json "$tmp/latest.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan live-data-tmp
+          git rm -rf .
+          cp "$tmp/latest.json" latest.json
+          git add latest.json
+          git commit -m "Update xyz:SPCX snapshot"
+          git push --force origin HEAD:live-data
