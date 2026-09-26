@@ -1,0 +1,16 @@
+{
+  "source": "Hyperliquid official Info API",
+  "market": "xyz:SPCX",
+  "fetched_at": "2026-09-26T20:02:53.949Z",
+  "fetched_at_unix_ms": 1790452973949,
+  "mark_price": 148.68,
+  "oracle_price": 148.64,
+  "mid_price": 148.675,
+  "best_bid": 148.67,
+  "best_ask": 148.68,
+  "funding_rate_hourly": 0.00000625,
+  "open_interest_usd": 118189341.95040001,
+  "volume_24h_usd": 3243018.0083999992,
+  "previous_day_price": 148.71,
+  "change_24h_percent": -0.02017349203147223
+}
